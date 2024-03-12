@@ -1,0 +1,144 @@
+Program.Sub.Preflight.Start
+Program.Sub.Preflight.End
+
+Program.Sub.Main.Start
+F.Intrinsic.Control.Try
+V.Local.sError.Declare(String)
+V.Local.sOrder.Declare(String)
+V.Local.sLine.Declare(String)
+V.Local.sSql.Declare(String)
+
+F.ODBC.Connection!Con.OpenConnection(V.Ambient.PDSN,V.Ambient.PUser,V.Ambient.PPass)
+
+'creating empty datatable
+'F.Data.DataTable.CreateFromSQL("SOChange","Con","Select Order_No, Record_No, Reason, Delete_Order From GCG_4552_SO_CHANGE Where Order_No = '-1'",True)
+
+F.Intrinsic.Control.SelectCase(V.Caller.Hook)
+	F.Intrinsic.Control.Case(12230)
+		'Making sure the core program isn't open in the new switch
+		F.Intrinsic.Control.If(V.Caller.Switches,<>,"N")
+			'save btn hook sales order line 12230
+			'check and see if sales order is in the GCG_4552_Sales_Order table 
+			'if True then check and see if the qty was changed or if the part was change if true then add sales order line to GCG_4552_SO_Change table 
+			'if false exit program
+
+			F.Intrinsic.String.LPad(V.Passed.000060,"0",7,V.Local.sOrder)
+			F.Intrinsic.String.LPad(V.Passed.000051,"0",3,V.Local.sLine)
+			F.Intrinsic.String.RPad(V.Local.sLine,"0",4,V.Local.sLine)
+			
+			F.Intrinsic.String.Build("Select Order_No, Reason, Delete_Order From GCG_4552_SO_CHANGE Where Order_No = '{0}'",V.Local.sOrder,V.Local.sSql)
+			F.Data.DataTable.CreateFromSQL("SOChange","Con",V.Local.sSql,True)
+			
+			F.Intrinsic.String.Build("Select Order_No From GCG_4552_Sales_Order Where Order_No = '{0}'",V.Local.sOrder,V.Local.sSql)
+			F.Data.DataTable.CreateFromSQL("Temp","Con",V.Local.sSql,True)
+			F.Intrinsic.Control.If(V.DataTable.Temp.RowCount--,<>,-1)
+				F.Data.DataTable.Close("Temp")
+				F.Intrinsic.String.Build("Select Part, Qty_Ordered From V_Order_Lines Where Order_No = '{0}' and Record_No = '{1}'",V.Local.sOrder,V.Local.sLine,V.Local.sSql)
+				
+				F.Data.DataTable.CreateFromSQL("Temp","Con",V.Local.sSql,True)
+				F.Intrinsic.Control.If(V.DataTable.Temp.RowCount--,<>,-1)
+					F.Intrinsic.Control.If(V.DataTable.Temp(V.DataTable.Temp.RowCount--).Part!FieldValTrim,=,V.Passed.000052.Trim)
+						F.Intrinsic.Control.If(V.DataTable.Temp(V.DataTable.Temp.RowCount--).Qty_Ordered!FieldValFloat,<>,V.Passed.000007.Float)
+							F.Intrinsic.Control.If(V.DataTable.SOChange.RowCount--,=,-1)
+								F.Data.DataTable.AddRow("SOChange","Order_No",V.Local.sOrder,"Reason","SO Change","Delete_Order",False)
+							F.Intrinsic.Control.EndIf
+						F.Intrinsic.Control.EndIf
+					F.Intrinsic.Control.Else
+						F.Intrinsic.Control.If(V.DataTable.SOChange.RowCount--,=,-1)
+							F.Data.DataTable.AddRow("SOChange","Order_No",V.Local.sOrder,"Reason","SO Change","Delete_Order",False)
+						F.Intrinsic.Control.EndIf
+					F.Intrinsic.Control.EndIf
+				F.Intrinsic.Control.Else
+					'this is a new line
+					F.Intrinsic.Control.If(V.DataTable.SOChange.RowCount--,=,-1)
+						F.Data.DataTable.AddRow("SOChange","Order_No",V.Local.sOrder,"Reason","SO Change","Delete_Order",False)
+					F.Intrinsic.Control.EndIf
+				F.Intrinsic.Control.EndIf
+				
+				F.Data.DataTable.SaveToDB("SOChange","Con","GCG_4552_SO_Change","Order_No",256,"Order_No@!@Order_No*!*Reason@!@Reason*!*Delete_Order@!@Delete_Order")
+			F.Intrinsic.Control.EndIf
+			F.Data.DataTable.Close("Temp")
+		F.Intrinsic.Control.EndIf
+	
+	F.Intrinsic.Control.Case(12240)
+		F.Intrinsic.Control.If(V.Caller.Switches,<>,"N")
+			'delete line hook sales order line 12240
+			'check and see if sales order is in the GCG_4552_Sales_Order table 
+			'if True then add sales order line to GCG_4552_SO_Change table 
+			'if false exit program
+			F.Intrinsic.String.LPad(V.Passed.000060,"0",7,V.Local.sOrder)
+			F.Intrinsic.String.LPad(V.Passed.000051,"0",3,V.Local.sLine)
+			F.Intrinsic.String.RPad(V.Local.sLine,"0",4,V.Local.sLine)
+			
+			F.Intrinsic.String.Build("Select Order_No, Reason, Delete_Order From GCG_4552_SO_CHANGE Where Order_No = '{0}'",V.Local.sOrder,V.Local.sSql)
+			F.Data.DataTable.CreateFromSQL("SOChange","Con",V.Local.sSql,True)
+			
+			F.Intrinsic.String.Build("Select Order_No From GCG_4552_Sales_Order Where Order_No = '{0}'",V.Local.sOrder,V.Local.sSql)
+			F.Data.DataTable.CreateFromSQL("Temp","Con",V.Local.sSql,True)
+			F.Intrinsic.Control.If(V.DataTable.Temp.RowCount--,<>,-1)
+				F.Intrinsic.Control.If(V.DataTable.SOChange.RowCount--,=,-1)
+					F.Data.DataTable.AddRow("SOChange","Order_No",V.Local.sOrder,"Reason","SO Change","Delete_Order",False)
+				F.Intrinsic.Control.EndIf
+			F.Intrinsic.Control.EndIf
+			F.Data.DataTable.Close("Temp")
+			
+			F.Data.DataTable.SaveToDB("SOChange","Con","GCG_4552_SO_Change","Order_No",256,"Order_No@!@Order_No*!*Reason@!@Reason*!*Delete_Order@!@Delete_Order")
+		F.Intrinsic.Control.EndIf
+	
+	F.Intrinsic.Control.Case(11880)	
+		'delete sales order sales order header 11880
+		'check and see if sales order is in the GCG_4552_Sales_Order table 
+		'if True then add sales order to GCG_4552_SO_Change table with the delete flag marked at true
+		'if false exit program
+		F.Intrinsic.String.LPad(V.Passed.000003,"0",7,V.Local.sOrder)
+		
+		F.Intrinsic.String.Build("Select Order_No, Reason, Delete_Order From GCG_4552_SO_CHANGE Where Order_No = '{0}'",V.Local.sOrder,V.Local.sSql)
+		F.Data.DataTable.CreateFromSQL("SOChange","Con",V.Local.sSql,True)
+			
+		F.Intrinsic.String.Build("Select Order_No From GCG_4552_Sales_Order Where Order_No = '{0}'",V.Local.sOrder,V.Local.sSql)
+		F.Data.DataTable.CreateFromSQL("Temp","Con",V.Local.sSql,True)
+		F.Intrinsic.Control.If(V.DataTable.Temp.RowCount--,<>,-1)
+			F.Data.DataTable.Close("SOChange")
+			F.Intrinsic.String.Build("Select Order_No, Record_No, Reason, Delete_Order From GCG_4552_SO_CHANGE Where Order_No = '{0}'",V.Local.sOrder,V.Local.sSql)
+			F.Data.DataTable.CreateFromSQL("SOChange","Con",V.Local.sSql,True)
+			F.Intrinsic.Control.If(V.DataTable.SOChange.RowCount--,<>,-1)
+				F.Data.DataTable.SetValue("SOChange",-1,"Reason","Order Deleted","Delete_Order",True)
+			F.Intrinsic.Control.Else
+				F.Intrinsic.Control.If(V.DataTable.SOChange.RowCount--,=,-1)
+					F.Data.DataTable.AddRow("SOChange","Order_No",V.Local.sOrder,"Record_No","","Reason","SO Deleted","Delete_Order",True)
+				F.Intrinsic.Control.EndIf
+			F.Intrinsic.Control.EndIf
+			
+			F.Data.DataTable.SaveToDB("SOChange","Con","GCG_4552_SO_Change","Order_No",256,"Order_No@!@Order_No*!*Reason@!@Reason*!*Delete_Order@!@Delete_Order")
+		F.Intrinsic.Control.EndIf
+F.Intrinsic.Control.EndSelect
+
+F.Intrinsic.Control.ExitSub
+
+F.Intrinsic.Control.Catch
+F.Intrinsic.Control.If(V.Ambient.ErrorNumber,<>,0)
+	F.Intrinsic.String.Build("Project: {0}{1}Subroutine: {2}{1}Error Occurred {3} with description {4}","GCG_4552_SO_Change.g2u",V.Ambient.NewLine,V.Ambient.CurrentSubroutine,V.Ambient.ErrorNumber,V.Ambient.ErrorDescription,V.Local.sError)
+	F.Intrinsic.UI.Msgbox(V.Local.sError)
+	F.Intrinsic.Control.CallSub(Exit)
+F.Intrinsic.Control.EndIf
+Function.Intrinsic.Control.EndTry
+Program.Sub.Main.End
+
+Program.Sub.Exit.Start
+F.Intrinsic.Control.Try
+V.Local.sError.Declare(String)
+
+F.ODBC.Connection!Con.Close
+F.Data.DataTable.Close("SOChange")
+F.Intrinsic.Control.End
+
+F.Intrinsic.Control.ExitSub
+
+F.Intrinsic.Control.Catch
+F.Intrinsic.Control.If(V.Ambient.ErrorNumber,<>,0)
+	F.Intrinsic.String.Build("Project: {0}{1}Subroutine: {2}{1}Error Occurred {3} with description {4}","GCG_4552_SO_Change.g2u",V.Ambient.NewLine,V.Ambient.CurrentSubroutine,V.Ambient.ErrorNumber,V.Ambient.ErrorDescription,V.Local.sError)
+	F.Intrinsic.UI.Msgbox(V.Local.sError)
+	F.Intrinsic.Control.End
+F.Intrinsic.Control.EndIf
+Function.Intrinsic.Control.EndTry
+Program.Sub.Exit.End
